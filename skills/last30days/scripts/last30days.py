@@ -842,7 +842,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Use at most one Perplexity Deep Research run. Direct PERPLEXITY_API_KEY uses the Agent API background path; OPENROUTER_API_KEY keeps the synchronous Sonar fallback; cannot be combined with competitor or vs-mode.")
     parser.add_argument("--hiring-signals", action="store_true",
                         help="Analyze public jobs/careers postings as evidence-backed company focus signals.")
-    parser.add_argument("--plan", help="JSON query plan (skips internal LLM planner). Can be a JSON string or a file path.")
+    parser.add_argument("--plan", help="JSON query plan (skips internal LLM planner). Can be a JSON string, a file path, or - for stdin.")
     parser.add_argument("--save-suffix", help="Suffix for saved output filename (e.g., 'gemini' → kanye-west-raw-gemini.md)")
     parser.add_argument("--subreddits", help="Comma-separated broad/category subreddit names to search (e.g., SaaS,Entrepreneur)")
     parser.add_argument("--dedicated-subreddits", help="Comma-separated entity-home subreddit names (e.g., Kanye,WestSubEver). Pulled in full (top+hot+new) and exempt from the relevance floor since the whole sub is the topic.")
@@ -2919,11 +2919,9 @@ def _law7_host_plan_message(signal: str) -> str:
         "call its internal planner. If you are the reasoning model hosting "
         "this skill, YOU ARE the planner; no API key or provider is needed. "
         "Write the JSON query plan (references/research-runbook.md Step 0.75) "
-        "to a tmpfile with a "
-        "quoted heredoc - QUERY_PLAN_FILE=$(mktemp "
-        "\"${TMPDIR:-/tmp}/last30days-plan.XXXXXX\"); "
-        "cat >| \"$QUERY_PLAN_FILE\" <<'PLAN_EOF' ... PLAN_EOF - and re-run "
-        "with --plan \"$QUERY_PLAN_FILE\" (see Research Execution in that "
+        "and pass it on stdin with a "
+        "quoted heredoc: --plan - <<'PLAN_EOF' ... PLAN_EOF "
+        "(see Research Execution in that "
         "runbook). With no "
         "web-search tool, pass --auto-resolve instead. For headless or cron "
         f"runs under an agent, set {env.ALLOW_ENGINE_PLAN_VAR}=1 to let the "
@@ -4083,7 +4081,13 @@ def _main(
         if args.plan:
             import json as _json
             plan_str = args.plan
-            if os.path.isfile(plan_str):
+            if plan_str == "-":
+                try:
+                    plan_str = sys.stdin.read()
+                except (OSError, UnicodeDecodeError) as exc:
+                    sys.stderr.write(f"[Planner] Cannot read --plan stdin: {exc}\n")
+                    raise SystemExit(2)
+            elif os.path.isfile(plan_str):
                 try:
                     with open(plan_str, encoding="utf-8") as f:
                         plan_str = f.read()
