@@ -198,6 +198,32 @@ def test_agent_hosted_plan_from_stdin_preserves_literal_json(monkeypatch):
     mocks["runtime"].assert_not_called()
 
 
+@pytest.mark.parametrize("encoding", ["cp1252", "utf-8"])
+def test_stdin_plan_decodes_utf8_bytes_once(monkeypatch, encoding):
+    plan = json.loads(json.dumps(VALID_PLAN))
+    plan["subqueries"][0]["search_query"] = "café grinders"
+    stdin = io.TextIOWrapper(
+        io.BytesIO(json.dumps(plan, ensure_ascii=False).encode("utf-8")),
+        encoding=encoding,
+    )
+    monkeypatch.setattr(sys, "stdin", stdin)
+    with mock.patch.object(stdin.buffer, "read", wraps=stdin.buffer.read) as read:
+        rc, stderr, mocks = _run_main(monkeypatch, [*TOPIC, "--plan", "-"])
+    assert rc is None, stderr
+    assert mocks["run"].call_args.kwargs["external_plan"] == plan
+    read.assert_called_once_with()
+
+
+def test_invalid_utf8_stdin_plan_stops_before_retrieval(monkeypatch):
+    stdin = io.TextIOWrapper(io.BytesIO(b'{"context": "\xff"}'), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdin", stdin)
+    rc, stderr, mocks = _run_main(monkeypatch, [*TOPIC, "--plan", "-"])
+    assert rc == 2
+    assert "Cannot read --plan stdin" in stderr
+    mocks["run"].assert_not_called()
+    mocks["runtime"].assert_not_called()
+
+
 @pytest.mark.parametrize(
     "raw,message",
     [("", "Invalid --plan JSON"), ("{broken", "Invalid --plan JSON"),
@@ -213,7 +239,7 @@ def test_invalid_stdin_plan_stops_without_fallback(monkeypatch, raw, message):
 
 
 def test_unreadable_stdin_plan_exits_cleanly(monkeypatch):
-    monkeypatch.setattr(sys, "stdin", mock.Mock(read=mock.Mock(side_effect=OSError("unreadable"))))
+    monkeypatch.setattr(sys, "stdin", mock.Mock(spec=["read"], read=mock.Mock(side_effect=OSError("unreadable"))))
     rc, stderr, mocks = _run_main(monkeypatch, [*TOPIC, "--plan", "-"])
     assert rc == 2
     assert "Cannot read --plan stdin" in stderr
