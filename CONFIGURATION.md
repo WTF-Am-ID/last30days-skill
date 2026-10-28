@@ -481,7 +481,7 @@ When you invoke `/last30days` from Claude Code, Codex, or Gemini, the host model
 
 ### Agent-hosted runs must pass `--plan`
 
-`--plan` accepts inline JSON, a JSON file path, or `-` to read JSON from standard input. For direct engine use in scripts or development, pass `--plan - <<'PLAN_EOF'` with the plan JSON on the following lines and `PLAN_EOF` on its own final line. The quoted delimiter preserves shell-sensitive characters without a temporary file or cleanup trap. `/last30days` hosts follow the complete command in `references/research-runbook.md`.
+`--plan` accepts inline JSON, a UTF-8 JSON file path, or `-` to read UTF-8 JSON from standard input. For the quoted-heredoc command that avoids temporary files and cleanup traps, see [Research Execution](skills/last30days/references/research-runbook.md#research-execution).
 
 When the engine detects an agent host, a research run without `--plan` exits 2 before live diagnostics or retrieval and does not call the internal planner. It prints a `[Planner] LAW 7` message telling the host model to write the plan and pass it with `--plan` (Step 0.75 and Research Execution in `references/research-runbook.md`). The engine treats a run as agent-hosted when any of these variables is set in the process environment (a `.env` line never counts):
 

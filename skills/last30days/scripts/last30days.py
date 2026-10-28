@@ -966,7 +966,7 @@ def build_parser() -> argparse.ArgumentParser:
 def parse_competitors_plan(raw: str | None) -> dict[str, dict]:
     """Parse a --competitors-plan argument into a {entity_name_lower: plan_entry} dict.
 
-    Accepts inline JSON or a file path (matches --plan). Returns {} on None/empty.
+    Accepts inline JSON or a file path. Returns {} on None/empty.
     Validation: top-level must be a dict; each value must be a dict. Unknown fields
     in entry values log a warning but do not abort. Invalid JSON or non-dict shape
     raises SystemExit(2) with a clear stderr message.
